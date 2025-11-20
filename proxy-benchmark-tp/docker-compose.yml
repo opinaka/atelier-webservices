@@ -51,11 +51,14 @@ services:
     depends_on: [backend]
 
   web:
-    image: nginx:alpine
-    ports: ["8080:80"]
-    volumes:
-      - ./attack.html:/usr/share/nginx/html/index.html:ro
-    networks: [proxy-net]
+    build: ./frontend
+    container_name: attack
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+
+
 
 networks:
   proxy-net:
