@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NGINX vs Traefik vs Kong – Live Benchmark</title>
+  <meta charset="UTF-8">
+  <style>
+    body { 
+      font-family: system-ui; 
+      background: #000; 
+      color: #0f0; 
+      padding: 2rem; 
+      margin: 0;
+    }
+    h1 { 
+      text-align: center; 
+      font-size: 2.5rem; 
+      margin-bottom: 2rem;
+    }
+    button { 
+      padding: 2rem; 
+      margin: 1rem; 
+      font-size: 2rem; 
+      background: #333; 
+      color: #0f0; 
+      border: 4px solid #0f0; 
+      width: calc(100% - 2rem); 
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background: #0f0;
+      color: #000;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    pre { 
+      background: #111; 
+      padding: 1rem; 
+      height: 500px; 
+      overflow: auto; 
+      border: 2px solid #0f0;
+      font-size: 1.2rem;
+      line-height: 1.5;
+    }
+    .warning {
+      background: #f00;
+      color: #fff;
+      padding: 1rem;
+      margin: 1rem;
+      text-align: center;
+      font-weight: bold;
+      border: 3px solid #fff;
+    }
+    .info {
+      background: #333;
+      color: #0f0;
+      padding: 1rem;
+      margin: 1rem;
+      border: 2px solid #0f0;
+    }
+    .input-group {
+      text-align: center;
+      margin: 2rem;
+      padding: 2rem;
+      background: #111;
+      border: 3px solid #0f0;
+    }
+    .input-group label {
+      font-size: 1.8rem;
+      margin-right: 1rem;
+      font-weight: bold;
+    }
+    .input-group input {
+      font-size: 1.8rem;
+      padding: 1rem;
+      width: 200px;
+      background: #000;
+      color: #0f0;
+      border: 3px solid #0f0;
+      text-align: center;
+    }
+    .suggestions {
+      margin-top: 1rem;
+      font-size: 1.2rem;
+    }
+    .suggestions button {
+      display: inline-block;
+      width: auto;
+      padding: 0.5rem 1rem;
+      margin: 0.5rem;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>⚡ Nginx vs  Traefik vs Apache 2 vs Kong⚡</h1>
+  
+  <div class="warning">
+    ⚠️ MODE PARALLÈLE PUR ⚠️<br>
+    Toutes les requêtes sont lancées EN MÊME TEMPS !<br>
+    Recommandé : 10-500 requêtes max (risque de crash au-delà)
+  </div>
+  
+  <div class="input-group">
+    <label>Nombre de requêtes :</label>
+    <input type="number" id="numRequests" value="100" min="1" max="100000">
+    
+    <div class="suggestions">
+      Suggestions rapides :
+      <button onclick="setRequests(10)">10</button>
+      <button onclick="setRequests(50)">50</button>
+      <button onclick="setRequests(100)">100</button>
+      <button onclick="setRequests(500)">500</button>
+      <button onclick="setRequests(1000)">1000 ⚠️</button>
+      <button onclick="setRequests(5000)">5000 ⚠️</button>
+      <button onclick="setRequests(10000)">10000 ⚠️</button>
+    </div>
+  </div>  
+
+  <button onclick="benchAll()">⚡ LANCER TOUS LES TESTS</button>
+
+  <pre id="log">Prêt à lancer les tests...\n\n</pre>
+
+  <script>
+    const log = document.getElementById('log');
+    const buttons = document.querySelectorAll('button');
+    
+    function setRequests(num) {
+      document.getElementById('numRequests').value = num;
+      log.innerHTML += `📝 Nombre de requêtes défini à ${num}\n`;
+      log.scrollTop = log.scrollHeight;
+    }
+    
+    function disableButtons(disabled) {
+      buttons.forEach(btn => btn.disabled = disabled);
+    }
+
+    async function testConnection() {
+      log.innerHTML += "\n=== Test de connexion ===\n";
+      const services = [
+        {name: 'NGINX', port: 8001},
+        {name: 'Traefik', port: 8002},
+        {name: 'Kong', port: 8003},
+        {name: 'Apache 2', port: 8004},
+        {name: 'Backend Direct', port: 3000}
+      ];
+      
+      for (const service of services) {
+        try {
+          const response = await fetch(`http://localhost:${service.port}/`);
+          const text = await response.text();
+          log.innerHTML += `✅ ${service.name} (${service.port}) : OK (réponse: "${text}")\n`;
+        } catch(err) {
+          log.innerHTML += `❌ ${service.name} (${service.port}) : ERREUR - ${err.message}\n`;
+        }
+      }
+      log.innerHTML += "\n";
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function benchAll() {
+      const numReq = document.getElementById('numRequests').value;
+      const services = [
+        {name: 'Backend Direct', port: 3000},
+        {name: 'NGINX', port: 8001},
+        {name: 'Traefik', port: 8002},
+        {name: 'Kong', port: 8003},
+         {name: 'Apache 2', port: 8004}
+      ];
+      
+      log.innerHTML += "\n========================================\n";
+      log.innerHTML += `🏁 COMPARAISON COMPLÈTE (${numReq} requêtes en parallèle)\n`;
+      log.innerHTML += "========================================\n";
+      
+      const results = [];
+      
+      for (const service of services) {
+        const result = await bench(service.name, service.port);
+        if (result) results.push(result);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      // Afficher le classement
+      log.innerHTML += "\n🏆 CLASSEMENT FINAL :\n";
+      log.innerHTML += "========================================\n";
+      results.sort((a, b) => b.reqPerSec - a.reqPerSec);
+      results.forEach((r, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+        log.innerHTML += `${medal} ${i+1}. ${r.name.padEnd(15)} → ${r.time}s (${r.reqPerSec} req/s)\n`;
+      });
+      
+      log.innerHTML += "\n✅ Tous les tests terminés !\n\n";
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function bench(name, port) {
+      disableButtons(true);
+      
+      const totalRequests = parseInt(document.getElementById('numRequests').value) || 10;
+      
+      log.innerHTML += `\n=== ${name} (${totalRequests} requêtes en PARALLÈLE sur port ${port}) ===\n`;
+      log.innerHTML += `⏳ Lancement de toutes les requêtes en même temps...\n`;
+      
+      const start = performance.now();
+      let errors = 0;
+      
+      try {
+        // TOUTES les requêtes en parallèle d'un coup !
+        const promises = [];
+        for (let i = 0; i < totalRequests; i++) {
+          promises.push(
+            fetch(`http://localhost:${port}/`)
+              .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.text();
+              })
+              .catch(err => {
+                errors++;
+                return null;
+              })
+          );
+        }
+        
+        await Promise.all(promises);
+        
+        const time = ((performance.now() - start) / 1000).toFixed(2);
+        const reqPerSec = Math.round(totalRequests / parseFloat(time));
+        const success = totalRequests - errors;
+        
+        log.innerHTML += `✅ ${name} → ${time}s pour ${success}/${totalRequests} requêtes (${reqPerSec} req/s)\n`;
+        if (errors > 0) {
+          log.innerHTML += `⚠️  ${errors} erreurs détectées\n`;
+        }
+        
+        log.scrollTop = log.scrollHeight;
+        disableButtons(false);
+        
+        return {name, time, reqPerSec, errors, success};
+        
+      } catch(err) {
+        log.innerHTML += `❌ Erreur critique: ${err.message}\n\n`;
+        log.scrollTop = log.scrollHeight;
+        disableButtons(false);
+        return null;
+      }
+    }
+  </script>
+</body>
+</html>

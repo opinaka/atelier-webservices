@@ -1,0 +1,12 @@
+http:
+  routers:
+    api:
+      rule: PathPrefix(`/`)
+      service: backend
+      entryPoints: [web]
+  
+  services:
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://backend:3000"
